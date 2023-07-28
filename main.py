@@ -1,7 +1,7 @@
 ##################################################################
 # Title:    Game of War V1
 # Author:   Preston Brubaker
-# Revision: 7/25/23
+# Revision: 7/27/23
 #################################################################
 import random
 # Import libraries
@@ -17,18 +17,18 @@ if use_pygame: import pygame
 
 time_between_its = 0
 max_its = 10000000000
-pause_int = 50000000000
+pause_int = 1000000000
 
 
-window_size_x = 1800             # Width of window
-window_size_y = 900             # Height of window
+window_size_x = 2000             # Width of window
+window_size_y = 40             # Height of window
 show_text = False
 draw_grid = True
 show_org_info = True
-chance_org_info = .000001
+chance_org_info = .000001       # Chance of an organisms info being displayed
 
-grid_s_x = 100                    # Number of pixels in x-direciton
-grid_s_y = 50
+grid_s_x = 500                    # Number of pixels in x-direction
+grid_s_y = 10                    # Number of pixels in y-direction
 
 # Number of pixels in y-direction
 grid_s = grid_s_x * grid_s_y    # Number of pixels
@@ -41,13 +41,15 @@ pixel_s_y = window_size_y / grid_s_y - border_w / 2
 
 iteration_count = 0
 
-food = []                       # 2D list of food associated with each pixel
+food = []         # 2D list of food associated with each pixel
 food_gen_i = 10
-food_gen_rate = 1
+food_gen_rate = 1.5
 is_occupied = []
 mut_ch_c = 0.1     # Chance of changing a given gene to a new random number
 mut_ins_c = 0.1    # Chance of inserting a gene to the end
 mut_rem_c = 0.1    # Chance of removing a random gene
+frac_mut = .01  #maximum mutation fraction
+team_mut = .9   # Team mutation rate
 
     # Organisms
 org_c_i = int(grid_s_x * grid_s_y * .3)    # Number of initial organisms
@@ -58,10 +60,10 @@ org_info = []   # Array with all the info about each organism
 met_rate = 1   #metabolic rate
 org_f_i = 20   # Initial reserve of food
 org_gen_len_i =  20 # Initial max length of genome
-max_genome_len = 20
-frac_mut = .01  #maximum mutation fraction
+max_genome_len = 50 # Max genome length allowed
 max_a = 14  #maximum value of an allele
 max_age = 1000 # Max age
+rep_loss_frac = .1  # Fraction of food lost during reproduction
 
 
 class Organism:
@@ -84,6 +86,7 @@ class Organism:
 
     def print_info(self):
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print("Iteration Count:", iteration_count)
         print("ID: ", self.id)
         print(f"Position: ({self.x}, {self.y})")
         print("Genome: ", self.genome)
@@ -186,7 +189,7 @@ def reproduce(x, y, food_trans, organism):
     indx = 0
     id = org_c_i - 1
     age = 0
-    offspring_food_rsv = food_trans  # Assign the food_trans to the offspring
+    offspring_food_rsv = food_trans * (1 - rep_loss_frac)  # Assign the food_trans to the offspring
     # Use the list's copy() method to create a copy of the genome
     genome = organism.genome.copy()
 
@@ -200,7 +203,7 @@ def reproduce(x, y, food_trans, organism):
             r2 = random.randint(1,max_a)
             genome[i] = r2
 
-    if(random.uniform(0,1) < .2):
+    if(random.uniform(0,1) < team_mut):
         r3 = random.uniform(0,1)
         if(r3 > .5):
             team +=1
@@ -240,7 +243,7 @@ def reproduce(x, y, food_trans, organism):
 def update_org():
     global org_info
     death_note = []
-    for organism in org_info:
+    for organism in reversed(list(org_info)):
         idx = organism.indx
         genome = organism.genome
         if(idx > len(genome) - 1):
@@ -288,10 +291,10 @@ def update_org():
                 organism.food_rsv -= food_shared
 
         # Write the death note >:)
-        if(organism.food_rsv < 0 or instruction == -9 or organism.age / max_age > random.uniform(0,1)):
+        if(organism.food_rsv <= 0 or instruction == -9 or organism.age / max_age > random.uniform(0,1)):
             death_note.append(organism)
             if(organism.food_rsv > 0):
-                food[x][y] += organism.food_rsv * 1.5
+                food[x][y] += organism.food_rsv * .9
                 organism.food_rsv = 0
 
         # Reproduce
@@ -394,6 +397,33 @@ def add_food():
 
 
 
+def alter_parameters():
+    global mut_ch_c
+    global mut_ins_c
+    global food_gen_rate
+    global frac_mut
+    global time_between_its
+    global pause_int
+    global mut_rem_c
+    global frac_mut
+    global draw_grid
+
+    print("Chance of mutation: " + str(mut_ch_c))
+    print("Chance of ins/rem: " + str(mut_ins_c))
+    print("Food gen rate: " + str(food_gen_rate))
+    print("frac mut rate: " + str(frac_mut))
+    print("time between intervals: " + str(time_between_its))
+    print("Draw grid? " + str(draw_grid))
+    pause_int = int(input("Next Interval: "))
+    mut_ch_c = float(input("Chance of mutation: "))
+    mut_ins_c = float(input("Chance of insertion / removal: "))
+    mut_rem_c = mut_ch_c
+    food_gen_rate = float(input("Food Gen rate: "))
+    frac_mut = float(input("Fractional mut rate: "))
+    time_between_its = float(input("Time between intervals: "))
+    draw_grid = bool(input("Draw Grid? (boolean): "))
+
+
 
 
 # Initialize
@@ -436,22 +466,22 @@ while running and iteration_count < max_its:
         time.sleep(time_between_its)
 
     if(iteration_count % pause_int == 0):
-        print("Chance of mutation: " + str(mut_ch_c))
-        print("Chance of ins/rem: " + str(mut_ins_c))
-        print("Food gen rate: " + str(food_gen_rate))
-        print("frac mut rate: " + str(frac_mut))
-        print("time between intervals: " + str(time_between_its))
-        pause_int = int(input("Next Interval: "))
-        mut_ch_c = float(input("Chance of mutation: "))
-        mut_ins_c = float(input("Chance of insertion / removal: "))
-        mut_rem_c = mut_ch_c
-        food_gen_rate = float(input("Food Gen rate: "))
-        eat_frac_mut = float(input("Fractional mut rate: "))
-        time_between_its = float(input("Time between intervals: "))
+        alter_parameters()
 
+    if use_pygame:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        keys = pygame.key.get_pressed()  # Get the state of all keys
+        if keys[pygame.K_SPACE]:  # Check if spacebar is being pressed
+            alter_parameters()
 
     update_org()
     update_occupation()
     add_food()
+
+    if(draw_grid == False and iteration_count % 100 == 0):
+        print("Iteration Count: " + str(iteration_count))
 
 if use_pygame: pygame.quit()
